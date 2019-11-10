@@ -11,21 +11,36 @@ pub fn wrap_in_const(
 ) -> TokenStream {
     let try_replacement = try::replacement();
 
-    let dummy_const = Ident::new(
-        &format!("_IMPL_{}_FOR_{}", trait_, unraw(ty)),
-        Span::call_site(),
-    );
-
-    let use_serde = match serde_path {
-        Some(path) => quote! {
-            use #path as _serde;
-        },
-        None => quote! {
-            #[allow(unknown_lints)]
-            #[cfg_attr(feature = "cargo-clippy", allow(useless_attribute))]
-            #[allow(rust_2018_idioms)]
-            extern crate serde as _serde;
-        },
+    let (dummy_const, use_serde) = match serde_path {
+        Some(path) => {
+            let dummy_const = match path.get_ident() {
+                Some(ident) => Ident::new(
+                    &format!("_IMPL_{}_{}_FOR_{}", ident, trait_, unraw(ty)),
+                    Span::call_site(),
+                ),
+                None => Ident::new(
+                    &format!("_IMPL_{}_FOR_{}", trait_, unraw(ty)),
+                    Span::call_site(),
+                ),
+            };
+            let use_serde = quote! {
+                use #path as _serde;
+            };
+            (dummy_const, use_serde)
+        }
+        None => {
+            let dummy_const = Ident::new(
+                &format!("_IMPL_{}_FOR_{}", trait_, unraw(ty)),
+                Span::call_site(),
+            );
+            let use_serde = quote! {
+                #[allow(unknown_lints)]
+                #[cfg_attr(feature = "cargo-clippy", allow(useless_attribute))]
+                #[allow(rust_2018_idioms)]
+                extern crate serde as _serde;
+            };
+            (dummy_const, use_serde)
+        }
     };
 
     quote! {
