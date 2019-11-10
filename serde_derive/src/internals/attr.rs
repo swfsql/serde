@@ -304,24 +304,6 @@ impl Container {
         let mut field_identifier = BoolAttr::none(cx, FIELD_IDENTIFIER);
         let mut variant_identifier = BoolAttr::none(cx, VARIANT_IDENTIFIER);
         let mut serde_path = Attr::none(cx, CRATE);
-        let mut serde_derive_symbol = Attr::none(cx, SYMBOL);
-
-        for meta_item in item
-            .attrs
-            .iter()
-            .flat_map(|attr| get_serde_derive_meta_items(cx, attr))
-            .flatten()
-        {
-            match &meta_item {
-                // Parse `#[serde_derive(symbol = "foo")]`
-                Meta(NameValue(m)) if m.path == SYMBOL => {
-                    if let Ok(s) = get_lit_str(cx, SYMBOL, &m.lit) {
-                        serde_derive_symbol.set(&m.path, s.value())
-                    }
-                }
-                _ => {} // ignore
-            }
-        }
 
         let mut apply_meta_item = |meta_item: syn::NestedMeta| {
             match &meta_item {
@@ -605,25 +587,18 @@ impl Container {
             }
         };
 
-        for meta_item in item
+        let serde_meta = item
             .attrs
             .iter()
-            .flat_map(|attr| get_serde_meta_items(cx, attr))
-            .flatten()
-        {
+            .flat_map(|attr| get_serde_meta_items(cx, attr, SERDE));
+        let serde_custom_meta = item
+            .attrs
+            .iter()
+            .flat_map(|attr| get_serde_meta_items(cx, attr, SERDE_CUSTOM));
+
+        for meta_item in serde_meta.chain(serde_custom_meta).flatten() {
             apply_meta_item(meta_item);
         }
-
-        if let Some(serde_symbol) = serde_derive_symbol.get() {
-            for meta_item in item
-                .attrs
-                .iter()
-                .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
-                .flatten()
-            {
-                apply_meta_item(meta_item);
-            }
-        };
 
         Container {
             name: Name::from_attrs(unraw(&item.ident), ser_name, de_name, None),
@@ -887,24 +862,6 @@ impl Variant {
         let mut serialize_with = Attr::none(cx, SERIALIZE_WITH);
         let mut deserialize_with = Attr::none(cx, DESERIALIZE_WITH);
         let mut borrow = Attr::none(cx, BORROW);
-        let mut serde_derive_symbol = Attr::none(cx, SYMBOL);
-
-        for meta_item in variant
-            .attrs
-            .iter()
-            .flat_map(|attr| get_serde_derive_meta_items(cx, attr))
-            .flatten()
-        {
-            match &meta_item {
-                // Parse `#[serde_derive(symbol = "foo")]`
-                Meta(NameValue(m)) if m.path == SYMBOL => {
-                    if let Ok(s) = get_lit_str(cx, SYMBOL, &m.lit) {
-                        serde_derive_symbol.set(&m.path, s.value())
-                    }
-                }
-                _ => {} // ignore
-            }
-        }
 
         let mut apply_meta_item = |meta_item: syn::NestedMeta| {
             match &meta_item {
@@ -1084,25 +1041,18 @@ impl Variant {
             }
         };
 
-        for meta_item in variant
+        let serde_meta = variant
             .attrs
             .iter()
-            .flat_map(|attr| get_serde_meta_items(cx, attr))
-            .flatten()
-        {
+            .flat_map(|attr| get_serde_meta_items(cx, attr, SERDE));
+        let serde_custom_meta = variant
+            .attrs
+            .iter()
+            .flat_map(|attr| get_serde_meta_items(cx, attr, SERDE_CUSTOM));
+
+        for meta_item in serde_meta.chain(serde_custom_meta).flatten() {
             apply_meta_item(meta_item);
         }
-
-        if let Some(serde_symbol) = &serde_derive_symbol.get() {
-            for meta_item in variant
-                .attrs
-                .iter()
-                .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
-                .flatten()
-            {
-                apply_meta_item(meta_item);
-            }
-        };
 
         Variant {
             name: Name::from_attrs(unraw(&variant.ident), ser_name, de_name, Some(de_aliases)),
@@ -1230,24 +1180,6 @@ impl Field {
         let mut borrowed_lifetimes = Attr::none(cx, BORROW);
         let mut getter = Attr::none(cx, GETTER);
         let mut flatten = BoolAttr::none(cx, FLATTEN);
-        let mut serde_derive_symbol = Attr::none(cx, SYMBOL);
-
-        for meta_item in field
-            .attrs
-            .iter()
-            .flat_map(|attr| get_serde_derive_meta_items(cx, attr))
-            .flatten()
-        {
-            match &meta_item {
-                // Parse `#[serde_derive(symbol = "foo")]`
-                Meta(NameValue(m)) if m.path == SYMBOL => {
-                    if let Ok(s) = get_lit_str(cx, SYMBOL, &m.lit) {
-                        serde_derive_symbol.set(&m.path, s.value())
-                    }
-                }
-                _ => {} // ignore
-            }
-        }
 
         let ident = match &field.ident {
             Some(ident) => unraw(ident),
@@ -1427,26 +1359,22 @@ impl Field {
             .and_then(|variant| variant.borrow.as_ref())
             .map(|borrow| Meta(borrow.clone()));
 
-        for meta_item in field
+        let serde_meta = field
             .attrs
             .iter()
-            .flat_map(|attr| get_serde_meta_items(cx, attr))
+            .flat_map(|attr| get_serde_meta_items(cx, attr, SERDE));
+        let serde_custom_meta = field
+            .attrs
+            .iter()
+            .flat_map(|attr| get_serde_meta_items(cx, attr, SERDE_CUSTOM));
+
+        for meta_item in serde_meta
+            .chain(serde_custom_meta)
             .flatten()
             .chain(variant_borrow)
         {
             apply_meta_item(meta_item);
         }
-
-        if let Some(serde_symbol) = serde_derive_symbol.get() {
-            for meta_item in field
-                .attrs
-                .iter()
-                .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
-                .flatten()
-            {
-                apply_meta_item(meta_item);
-            }
-        };
 
         // Is skip_deserializing, initialize the field to Default::default() unless a
         // different default is specified by `#[serde(default = "...")]` on
@@ -1665,29 +1593,12 @@ fn get_where_predicates(
     Ok((ser.at_most_one()?, de.at_most_one()?))
 }
 
-pub fn get_serde_derive_meta_items(
+pub fn get_serde_meta_items(
     cx: &Ctxt,
     attr: &syn::Attribute,
+    sym: Symbol,
 ) -> Result<Vec<syn::NestedMeta>, ()> {
-    if attr.path != SERDE_DERIVE {
-        return Ok(Vec::new());
-    }
-
-    match attr.parse_meta() {
-        Ok(List(meta)) => Ok(meta.nested.into_iter().collect()),
-        Ok(other) => {
-            cx.error_spanned_by(other, "expected #[serde_derive(...)]");
-            Err(())
-        }
-        Err(err) => {
-            cx.syn_error(err);
-            Err(())
-        }
-    }
-}
-
-pub fn get_serde_meta_items(cx: &Ctxt, attr: &syn::Attribute) -> Result<Vec<syn::NestedMeta>, ()> {
-    if attr.path != SERDE {
+    if attr.path != sym {
         return Ok(Vec::new());
     }
 
@@ -1695,28 +1606,6 @@ pub fn get_serde_meta_items(cx: &Ctxt, attr: &syn::Attribute) -> Result<Vec<syn:
         Ok(List(meta)) => Ok(meta.nested.into_iter().collect()),
         Ok(other) => {
             cx.error_spanned_by(other, "expected #[serde(...)]");
-            Err(())
-        }
-        Err(err) => {
-            cx.syn_error(err);
-            Err(())
-        }
-    }
-}
-
-pub fn get_serde_symbol_meta_items(
-    cx: &Ctxt,
-    attr: &syn::Attribute,
-    serde_derive_symbol: &str,
-) -> Result<Vec<syn::NestedMeta>, ()> {
-    if !attr.path.is_ident(serde_derive_symbol) {
-        return Ok(Vec::new());
-    }
-
-    match attr.parse_meta() {
-        Ok(List(meta)) => Ok(meta.nested.into_iter().collect()),
-        Ok(other) => {
-            cx.error_spanned_by(other, format!("expected #[{}(...)]", serde_derive_symbol));
             Err(())
         }
         Err(err) => {
