@@ -318,7 +318,7 @@ impl Container {
                     if let Ok(s) = get_lit_str(cx, SYMBOL, &m.lit) {
                         serde_derive_symbol.set(&m.path, s.value())
                     }
-                },
+                }
                 _ => {} // ignore
             }
         }
@@ -616,10 +616,10 @@ impl Container {
 
         if let Some(serde_symbol) = serde_derive_symbol.get() {
             for meta_item in item
-            .attrs
-            .iter()
-            .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
-            .flatten()
+                .attrs
+                .iter()
+                .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
+                .flatten()
             {
                 apply_meta_item(meta_item);
             }
@@ -901,7 +901,7 @@ impl Variant {
                     if let Ok(s) = get_lit_str(cx, SYMBOL, &m.lit) {
                         serde_derive_symbol.set(&m.path, s.value())
                     }
-                },
+                }
                 _ => {} // ignore
             }
         }
@@ -1082,7 +1082,6 @@ impl Variant {
                     cx.error_spanned_by(lit, "unexpected literal in serde variant attribute");
                 }
             }
-
         };
 
         for meta_item in variant
@@ -1096,10 +1095,10 @@ impl Variant {
 
         if let Some(serde_symbol) = &serde_derive_symbol.get() {
             for meta_item in variant
-            .attrs
-            .iter()
-            .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
-            .flatten()
+                .attrs
+                .iter()
+                .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
+                .flatten()
             {
                 apply_meta_item(meta_item);
             }
@@ -1245,7 +1244,7 @@ impl Field {
                     if let Ok(s) = get_lit_str(cx, SYMBOL, &m.lit) {
                         serde_derive_symbol.set(&m.path, s.value())
                     }
-                },
+                }
                 _ => {} // ignore
             }
         }
@@ -1422,7 +1421,6 @@ impl Field {
                     cx.error_spanned_by(lit, "unexpected literal in serde field attribute");
                 }
             }
-
         };
 
         let variant_borrow = attrs
@@ -1441,10 +1439,10 @@ impl Field {
 
         if let Some(serde_symbol) = serde_derive_symbol.get() {
             for meta_item in field
-            .attrs
-            .iter()
-            .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
-            .flatten()
+                .attrs
+                .iter()
+                .flat_map(|attr| get_serde_symbol_meta_items(cx, attr, &serde_symbol))
+                .flatten()
             {
                 apply_meta_item(meta_item);
             }
@@ -1667,7 +1665,10 @@ fn get_where_predicates(
     Ok((ser.at_most_one()?, de.at_most_one()?))
 }
 
-pub fn get_serde_derive_meta_items(cx: &Ctxt, attr: &syn::Attribute) -> Result<Vec<syn::NestedMeta>, ()> {
+pub fn get_serde_derive_meta_items(
+    cx: &Ctxt,
+    attr: &syn::Attribute,
+) -> Result<Vec<syn::NestedMeta>, ()> {
     if attr.path != SERDE_DERIVE {
         return Ok(Vec::new());
     }
@@ -1703,7 +1704,11 @@ pub fn get_serde_meta_items(cx: &Ctxt, attr: &syn::Attribute) -> Result<Vec<syn:
     }
 }
 
-pub fn get_serde_symbol_meta_items(cx: &Ctxt, attr: &syn::Attribute, serde_derive_symbol: &str) -> Result<Vec<syn::NestedMeta>, ()> {
+pub fn get_serde_symbol_meta_items(
+    cx: &Ctxt,
+    attr: &syn::Attribute,
+    serde_derive_symbol: &str,
+) -> Result<Vec<syn::NestedMeta>, ()> {
     if !attr.path.is_ident(serde_derive_symbol) {
         return Ok(Vec::new());
     }
